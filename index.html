@@ -18,10 +18,7 @@
     justify-content: center;
     padding: 24px;
   }
-  #ecran-code {
-    text-align: center;
-    max-width: 380px;
-  }
+  .ecran { text-align: center; max-width: 460px; width: 100%; }
   .sur-titre {
     font-family: 'Raleway', sans-serif;
     font-size: 12px;
@@ -38,7 +35,7 @@
     color: #f0e6d8;
     margin-bottom: 32px;
   }
-  input {
+  input, textarea {
     width: 100%;
     padding: 14px 16px;
     background: #1a1420;
@@ -47,11 +44,11 @@
     font-family: 'Raleway', sans-serif;
     font-size: 15px;
     border-radius: 4px;
-    text-align: center;
-    letter-spacing: 1px;
     margin-bottom: 16px;
   }
-  input:focus { outline: none; border-color: #c8a96e; }
+  input { text-align: center; letter-spacing: 1px; }
+  textarea { text-align: left; min-height: 140px; resize: vertical; line-height: 1.6; }
+  input:focus, textarea:focus { outline: none; border-color: #c8a96e; }
   button {
     width: 100%;
     padding: 14px;
@@ -67,33 +64,55 @@
     cursor: pointer;
   }
   button:hover { background: #d8bc85; }
-  .msg-erreur {
-    color: #c88a6e;
-    font-size: 13px;
-    margin-top: 12px;
-    min-height: 18px;
-  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .msg-erreur { color: #c88a6e; font-size: 13px; margin-top: 12px; min-height: 18px; }
   .mention {
     font-family: 'Raleway', sans-serif;
-    font-size: 11px;
-    color: #8a7a6a;
-    margin-top: 24px;
-    opacity: 0.7;
-    max-width: 280px;
-    margin-left: auto;
-    margin-right: auto;
+    font-size: 11px; color: #8a7a6a; margin-top: 24px; opacity: 0.7;
+    max-width: 280px; margin-left: auto; margin-right: auto;
+  }
+  .accueil-nom {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 20px;
+    color: #c8a96e;
+    margin-bottom: 24px;
+  }
+  #ecran-recit, #ecran-resultat { display: none; }
+  .resultat-texte {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 19px;
+    line-height: 1.8;
+    color: #f0e6d8;
+    text-align: left;
+    margin-bottom: 24px;
   }
 </style>
 </head>
 <body>
 
-<div id="ecran-code">
+<div class="ecran" id="ecran-code">
   <div class="sur-titre">Ludmilla Énergie</div>
   <h1>Le Passage</h1>
   <input type="text" id="input-code" placeholder="Ton code d'accès" autocomplete="off" autocapitalize="characters">
   <button onclick="verifierCode()">Entrer</button>
   <div class="msg-erreur" id="msg-erreur"></div>
   <p class="mention">Cet espace accompagne un chemin intérieur. Il ne remplace pas un avis médical ou professionnel.</p>
+</div>
+
+<div class="ecran" id="ecran-recit">
+  <div class="sur-titre">Ludmilla Énergie</div>
+  <p class="accueil-nom" id="accueil-nom"></p>
+  <textarea id="input-recit" placeholder="Raconte librement ce que tu traverses en ce moment..."></textarea>
+  <button onclick="analyserRecit()" id="btn-recit">Continuer</button>
+  <div class="msg-erreur" id="msg-erreur-recit"></div>
+  <p class="mention">Cet espace accompagne un chemin intérieur. Il ne remplace pas un avis médical ou professionnel.</p>
+</div>
+
+<div class="ecran" id="ecran-resultat">
+  <div class="sur-titre">Ludmilla Énergie</div>
+  <p class="resultat-texte" id="resultat-texte"></p>
 </div>
 
 <script>
@@ -120,13 +139,47 @@ async function verifierCode() {
     if (data.valide) {
       localStorage.setItem('lepassage_code', code);
       localStorage.setItem('lepassage_personne', JSON.stringify(data.personne));
-      msgErreur.style.color = '#8ec89a';
-      msgErreur.textContent = "Bienvenue, " + data.personne.prenom + ".";
+      document.getElementById('ecran-code').style.display = 'none';
+      document.getElementById('ecran-recit').style.display = 'block';
+      document.getElementById('accueil-nom').textContent = data.personne.prenom + ", qu'est-ce qui t'amène aujourd'hui ?";
     } else {
       msgErreur.textContent = "Ce code n'est pas reconnu.";
     }
   } catch (e) {
     msgErreur.textContent = "Une erreur est survenue, réessaie.";
+  }
+}
+
+async function analyserRecit() {
+  const recit = document.getElementById('input-recit').value.trim();
+  const msgErreur = document.getElementById('msg-erreur-recit');
+  const btn = document.getElementById('btn-recit');
+  msgErreur.textContent = '';
+
+  if (!recit) {
+    msgErreur.textContent = "Raconte-moi ce que tu traverses avant de continuer.";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Un instant...";
+
+  try {
+    const reponse = await fetch(WORKER_URL + '/analyser-recit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recit })
+    });
+    const data = await reponse.json();
+
+    document.getElementById('ecran-recit').style.display = 'none';
+    document.getElementById('ecran-resultat').style.display = 'block';
+    const nomOracle = data.oracle === 'evidences' ? "l'Oracle des Évidences" : "l'Oracle de Traversée";
+    document.getElementById('resultat-texte').textContent = "Ce que tu portes appelle " + nomOracle + ". " + data.raison;
+  } catch (e) {
+    msgErreur.textContent = "Une erreur est survenue, réessaie.";
+    btn.disabled = false;
+    btn.textContent = "Continuer";
   }
 }
 
