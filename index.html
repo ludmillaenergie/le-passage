@@ -78,7 +78,35 @@
     color: #c8a96e;
     margin-bottom: 24px;
   }
-  #ecran-recit, #ecran-resultat { display: none; }
+  #ecran-recit, #ecran-tirage, #ecran-resultat { display: none; }
+  .oracle-choisi {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: #f0e6d8;
+    margin-bottom: 8px;
+  }
+  .raison-choix {
+    font-size: 13px;
+    color: #8a7a6a;
+    margin-bottom: 32px;
+    line-height: 1.6;
+  }
+  .carte-nom {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 32px;
+    color: #c8a96e;
+    margin-bottom: 8px;
+  }
+  .carte-mot {
+    font-family: 'Raleway', sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #8a7a6a;
+    margin-bottom: 32px;
+  }
   .resultat-texte {
     font-family: 'Cormorant Garamond', serif;
     font-style: italic;
@@ -110,13 +138,107 @@
   <p class="mention">Cet espace accompagne un chemin intérieur. Il ne remplace pas un avis médical ou professionnel.</p>
 </div>
 
+<div class="ecran" id="ecran-tirage">
+  <div class="sur-titre">Ludmilla Énergie</div>
+  <p class="oracle-choisi" id="oracle-choisi"></p>
+  <p class="raison-choix" id="raison-choix"></p>
+  <button onclick="tirerCarte()" id="btn-tirer">Tirer une carte</button>
+</div>
+
 <div class="ecran" id="ecran-resultat">
   <div class="sur-titre">Ludmilla Énergie</div>
+  <p class="carte-nom" id="carte-nom"></p>
+  <p class="carte-mot" id="carte-mot"></p>
   <p class="resultat-texte" id="resultat-texte"></p>
+  <p class="mention">Cet espace accompagne un chemin intérieur. Il ne remplace pas un avis médical ou professionnel.</p>
 </div>
 
 <script>
 const WORKER_URL = "https://le-passage.ludmillaenergie.workers.dev";
+
+const CARTES_TRAVERSEE = {
+  blessures: [
+    { nom: "Trahison", mots: ["Mensonge","Séparation","Déception","Perte de confiance"] },
+    { nom: "Abandon", mots: ["Solitude","Peur de l'engagement","Dépendance","Rejet"] },
+    { nom: "Injustice", mots: ["Déséquilibre","Révolte","Frustration","Jugement"] },
+    { nom: "Humiliation", mots: ["Honte","Irrespect","Dévalorisation","Doute de soi"] },
+    { nom: "Rejet", mots: ["Isolement","Désespoir","Insécurité","Peur de l'amour"] },
+    { nom: "Mensonge", mots: ["Illusion","Faux espoir","Tromperie","Manipulation"] },
+    { nom: "Sacrifice", mots: ["Renoncement","Dysfonctionnement","Épuisement","Dévotion"] },
+    { nom: "Dépendance", mots: ["Attachement excessif","Besoin de contrôle","Schéma répétitif","Peur de l'abandon"] },
+    { nom: "Silence", mots: ["Non-dits","Blocage émotionnel","Destructeur","Repli"] },
+    { nom: "Peur de l'engagement", mots: ["Fuite","Isolement","Angoisse","Blessure passée"] },
+    { nom: "Détachement", mots: ["Manque d'émotion","Désamour","Distance","Indifférence"] },
+    { nom: "Auto-sabotage", mots: ["Échec","Mécanisme de défense","Croyance limitante","Procrastination"] },
+    { nom: "Enfermement", mots: ["Prison intérieure","Passivité","Égocentrisme","Peur"] },
+    { nom: "Rancune", mots: ["Amertume","Colère","Ressentiment","Dispersion"] },
+    { nom: "Rupture", mots: ["Séparation","Discorde","Effondrement","Injustice"] },
+    { nom: "Nostalgie", mots: ["Souvenirs","Idéalisation","Attachement","Mélancolie"] },
+    { nom: "Épuisement", mots: ["Fatigue physique","Sacrifice","Déséquilibre","Burn-out"] }
+  ],
+  guerisons: [
+    { nom: "Renaissance", mots: ["Nouveau départ","Impulsion","Lumière","Espoir"] },
+    { nom: "Compréhension", mots: ["Empathie","Ouverture d'esprit","Accueil","Échange"] },
+    { nom: "Pardon", mots: ["Résilience","Paix","Réconciliation","Apaisement"] },
+    { nom: "Expression", mots: ["Vérité","Libération","Partage","Communication"] },
+    { nom: "Alignement", mots: ["Cohérence","Reconnexion","Amour de soi","Authenticité"] },
+    { nom: "Amour", mots: ["Inconditionnel","Expansion","Éternité","Connexion"] },
+    { nom: "Confiance", mots: ["Sécurité","Stabilité","Engagement","Foi"] },
+    { nom: "Équilibre", mots: ["Harmonie","Réciprocité","Respect","Justesse"] },
+    { nom: "Gratitude", mots: ["Reconnaissance","Présents","Abondance","Joie"] },
+    { nom: "Lâcher-prise", mots: ["Détachement","Confiance","Sagesse","Acceptation"] },
+    { nom: "Authenticité", mots: ["Vérité","Amour de soi","Alignement","Liberté"] },
+    { nom: "Ouverture de cœur", mots: ["Recevoir","Donner","Apaisement","Sensibilité"] },
+    { nom: "Passion", mots: ["Désir","Magnétisme","Vitalité","Énergie"] },
+    { nom: "Complétude", mots: ["Autonomie","Équilibre","Sécurité intérieure","Épanouissement"] },
+    { nom: "Résilience", mots: ["Force","Transformation","Persévérance","Adaptation"] },
+    { nom: "Égoïsme positif", mots: ["Autonomie","Priorisation","Respect de ses besoins","Affirmation de soi"] },
+    { nom: "Communication", mots: ["Clarté","Positive","Fluidité","Écoute"] }
+  ]
+};
+
+const CARTES_EVIDENCES = {
+  lunaire: [
+    { nom: 'Refuge', mots: ['Abri', 'Sécurité', 'Envol', 'Enfermement'] },
+    { nom: 'Lâcher-prise', mots: ['Peur', 'Résistance', 'Soulagement', 'Confiance'] },
+    { nom: 'Deuil', mots: ['Choc', 'Résistance', 'Transformation', 'Acceptation'] },
+    { nom: 'Silence', mots: ['Paix', 'Présence', 'Rupture', 'Évitement'] },
+    { nom: 'Dépendance', mots: ['Attachement', 'Habitude', 'Libération', 'Souffrance'] },
+    { nom: 'Nostalgie', mots: ['Douceur', 'Mélancolie', 'Passage', 'Gratitude'] },
+    { nom: 'Séparation', mots: ['Déchirement', 'Deuil', 'Renaissance', 'Nécessité'] },
+    { nom: 'Transmission', mots: ['Héritage', 'Réception', 'Transformation', 'Choix'] },
+    { nom: 'Blessure Sacrée', mots: ['Douleur', 'Résistance', 'Intégration', 'Enseignement'] },
+    { nom: 'Attente', mots: ['Espoir', 'Patience', 'Lâcher-prise', 'Doute'] },
+    { nom: 'Dévotion', mots: ['Offrande', 'Abandon', 'Renouveau', 'Épuisement'] },
+    { nom: 'Appartenance', mots: ['Racines', 'Identité', 'Libération', 'Conditionnement'] },
+    { nom: 'Loyauté', mots: ['Fidélité', 'Solidité', 'Choix', 'Sacrifice'] },
+    { nom: 'Fusion', mots: ['Accord', 'Connexion', 'Alignement', 'Vibration'] },
+    { nom: 'Mémoire', mots: ['Souvenir', 'Ancrage', 'Transmission', 'Nostalgie'] },
+    { nom: 'Résonance', mots: ['Écho', 'Connexion', 'Alignement', 'Vibration'] },
+    { nom: 'Miroir', mots: ['Découverte', 'Reconnaissance', 'Révélation', 'Confrontation'] }
+  ],
+  solaire: [
+    { nom: 'Feu', mots: ['Étincelle', 'Embrasement', 'Cendres', 'Consumation'] },
+    { nom: 'Rencontre', mots: ['Signe', 'Reconnaissance', 'Commencement', 'Choix'] },
+    { nom: 'Éveil', mots: ['Trouble', 'Prise de conscience', 'Clarté', 'Bascule'] },
+    { nom: 'Initiation', mots: ['Seuil', 'Épreuve', 'Métamorphose', 'Dépassement'] },
+    { nom: 'Défi', mots: ['Résistance', 'Confrontation', 'Affirmation', 'Dépassement'] },
+    { nom: 'Protection', mots: ['Instinct', 'Sécurité', 'Confiance', 'Contrôle'] },
+    { nom: 'Engagement', mots: ['Choix', 'Ancrage', 'Solidité', 'Persévérance'] },
+    { nom: 'Création', mots: ['Inspiration', 'Gestation', 'Rayonnement', 'Naissance'] },
+    { nom: 'Combat', mots: ['Tension', 'Affrontement', 'Lucidité', 'Épuisement'] },
+    { nom: 'Rupture', mots: ['Fissure', 'Fracture', 'Renaissance', 'Effondrement'] },
+    { nom: 'Passage', mots: ['Seuil', 'Bascule', 'Renouveau', 'Transformation'] },
+    { nom: 'Contrat', mots: ['Accord', 'Engagement', 'Libération', 'Trahison'] },
+    { nom: 'Liberté', mots: ['Envol', 'Solitude', 'Ancrage', 'Errance'] },
+    { nom: 'Héritage', mots: ['Réception', 'Fardeau', 'Transmission', 'Choix'] },
+    { nom: 'Présence', mots: ['Attention', 'Ancrage', 'Plénitude', 'Offrande'] },
+    { nom: 'Perte', mots: ['Choc', 'Manque', 'Reconstruction', 'Errance'] },
+    { nom: 'Renouveau', mots: ['Graine', 'Émergence', 'Floraison', 'Croissance'] }
+  ]
+};
+
+let etatSession = { recit: '', oracle: '', raison: '', carte: null };
 
 async function verifierCode() {
   const code = document.getElementById('input-code').value.trim().toUpperCase();
@@ -172,14 +294,68 @@ async function analyserRecit() {
     });
     const data = await reponse.json();
 
+    etatSession.recit = recit;
+    etatSession.oracle = data.oracle;
+    etatSession.raison = data.raison;
+
     document.getElementById('ecran-recit').style.display = 'none';
-    document.getElementById('ecran-resultat').style.display = 'block';
+    document.getElementById('ecran-tirage').style.display = 'block';
     const nomOracle = data.oracle === 'evidences' ? "l'Oracle des Évidences" : "l'Oracle de Traversée";
-    document.getElementById('resultat-texte').textContent = "Ce que tu portes appelle " + nomOracle + ". " + data.raison;
+    document.getElementById('oracle-choisi').textContent = nomOracle;
+    document.getElementById('raison-choix').textContent = data.raison;
   } catch (e) {
     msgErreur.textContent = "Une erreur est survenue, réessaie.";
     btn.disabled = false;
     btn.textContent = "Continuer";
+  }
+}
+
+function piocherCarte() {
+  if (etatSession.oracle === 'evidences') {
+    const familles = ['lunaire', 'solaire'];
+    const famille = familles[Math.floor(Math.random() * 2)];
+    const liste = CARTES_EVIDENCES[famille];
+    const carte = liste[Math.floor(Math.random() * liste.length)];
+    const motHaut = carte.mots[Math.floor(Math.random() * carte.mots.length)];
+    return { nom: carte.nom, type: famille, motHaut };
+  } else {
+    const types = ['blessures', 'guerisons'];
+    const type = types[Math.floor(Math.random() * 2)];
+    const liste = CARTES_TRAVERSEE[type];
+    const carte = liste[Math.floor(Math.random() * liste.length)];
+    const motHaut = carte.mots[Math.floor(Math.random() * carte.mots.length)];
+    return { nom: carte.nom, type: type === 'blessures' ? 'blessure' : 'guerison', motHaut };
+  }
+}
+
+async function tirerCarte() {
+  const btn = document.getElementById('btn-tirer');
+  btn.disabled = true;
+  btn.textContent = "Un instant...";
+
+  const carte = piocherCarte();
+  etatSession.carte = carte;
+
+  try {
+    const reponse = await fetch(WORKER_URL + '/generer-lecture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recit: etatSession.recit,
+        oracle: etatSession.oracle,
+        carte: carte
+      })
+    });
+    const data = await reponse.json();
+
+    document.getElementById('ecran-tirage').style.display = 'none';
+    document.getElementById('ecran-resultat').style.display = 'block';
+    document.getElementById('carte-nom').textContent = carte.nom;
+    document.getElementById('carte-mot').textContent = carte.motHaut;
+    document.getElementById('resultat-texte').textContent = data.lecture;
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = "Tirer une carte";
   }
 }
 
