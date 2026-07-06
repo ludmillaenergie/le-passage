@@ -107,7 +107,27 @@
     color: #8a7a6a;
     margin-bottom: 32px;
   }
-  .resultat-texte {
+ #fil-echange { margin-bottom: 16px; }
+  .bulle-oracle {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 18px;
+    line-height: 1.8;
+    color: #f0e6d8;
+    text-align: left;
+    margin-bottom: 20px;
+  }
+  .bulle-personne {
+    font-family: 'Raleway', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #c8a96e;
+    text-align: left;
+    margin-bottom: 20px;
+    padding-left: 12px;
+    border-left: 2px solid #2a2030;
+  } 
+ .resultat-texte {
     font-family: 'Cormorant Garamond', serif;
     font-style: italic;
     font-size: 19px;
@@ -146,12 +166,14 @@
 </div>
 
 <div class="ecran" id="ecran-resultat">
-  <div class="sur-titre">Ludmilla Énergie</div>
-  <p class="carte-nom" id="carte-nom"></p>
-  <p class="carte-mot" id="carte-mot"></p>
-  <p class="resultat-texte" id="resultat-texte"></p>
-  <p class="mention">Cet espace accompagne un chemin intérieur. Il ne remplace pas un avis médical ou professionnel.</p>
-</div>
+      <div class="sur-titre">Ludmilla Énergie</div>
+      <p class="carte-nom" id="carte-nom"></p>
+      <p class="carte-mot" id="carte-mot"></p>
+      <div id="fil-echange"></div>
+      <textarea id="input-dialogue" placeholder="Tu peux répondre, poser une question, continuer..."></textarea>
+      <button onclick="envoyerDialogue()" id="btn-dialogue">Envoyer</button>
+      <p class="mention">Cet espace accompagne un chemin intérieur. Il ne remplace pas un avis médical ou professionnel.</p>
+    </div>
 
 <script>
 const WORKER_URL = "https://le-passage.ludmillaenergie.workers.dev";
@@ -238,7 +260,7 @@ const CARTES_EVIDENCES = {
   ]
 };
 
-let etatSession = { recit: '', oracle: '', raison: '', carte: null };
+let etatSession = { recit: '', oracle: '', raison: '', carte: null, historique: [] };
 
 async function verifierCode() {
   const code = document.getElementById('input-code').value.trim().toUpperCase();
@@ -352,11 +374,59 @@ async function tirerCarte() {
     document.getElementById('ecran-resultat').style.display = 'block';
     document.getElementById('carte-nom').textContent = carte.nom;
     document.getElementById('carte-mot').textContent = carte.motHaut;
-    document.getElementById('resultat-texte').textContent = data.lecture;
+
+    etatSession.historique.push({ role: 'assistant', texte: data.lecture });
+    afficherFilEchange();
   } catch (e) {
     btn.disabled = false;
     btn.textContent = "Tirer une carte";
   }
+}
+
+function afficherFilEchange() {
+  const fil = document.getElementById('fil-echange');
+  fil.innerHTML = '';
+  etatSession.historique.forEach(item => {
+    const bulle = document.createElement('p');
+    bulle.className = item.role === 'assistant' ? 'bulle-oracle' : 'bulle-personne';
+    bulle.textContent = item.texte;
+    fil.appendChild(bulle);
+  });
+}
+
+async function envoyerDialogue() {
+  const message = document.getElementById('input-dialogue').value.trim();
+  const btn = document.getElementById('btn-dialogue');
+
+  if (!message) return;
+
+  etatSession.historique.push({ role: 'user', texte: message });
+  afficherFilEchange();
+  document.getElementById('input-dialogue').value = '';
+  btn.disabled = true;
+  btn.textContent = "Un instant...";
+
+  try {
+    const reponse = await fetch(WORKER_URL + '/dialoguer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recit: etatSession.recit,
+        oracle: etatSession.oracle,
+        carte: etatSession.carte,
+        historique: etatSession.historique
+      })
+    });
+    const data = await reponse.json();
+
+    etatSession.historique.push({ role: 'assistant', texte: data.reponse });
+    afficherFilEchange();
+  } catch (e) {
+    // silencieux, on laisse la personne réessayer
+  }
+
+  btn.disabled = false;
+  btn.textContent = "Envoyer";
 }
 
 document.getElementById('input-code').addEventListener('keypress', function(e) {
